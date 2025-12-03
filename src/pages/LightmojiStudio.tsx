@@ -1,5 +1,5 @@
 // lightmoji Studio - Where the magic happens! ✨💜
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PixelCanvas } from "../components/PixelCanvas/PixelCanvas";
 import type { Frame, RGB, Tool } from "../types/lightmoji";
 import {
@@ -11,18 +11,63 @@ import {
 } from "../utils/lightmoji";
 import "./LightmojiStudio.css";
 
+const STORAGE_KEY = "lightmoji-studio-state";
+
+interface StoredState {
+  frames: Frame[];
+  currentFrameIndex: number;
+  selectedColor: RGB;
+  showGrid: boolean;
+}
+
 export function LightmojiStudio() {
-  const [frames, setFrames] = useState<Frame[]>([createEmptyFrame()]);
-  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  // Load from localStorage on mount
+  const loadStoredState = (): StoredState | null => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error("Failed to load from localStorage:", error);
+    }
+    return null;
+  };
+
+  const storedState = loadStoredState();
+
+  const [frames, setFrames] = useState<Frame[]>(
+    storedState?.frames || [createEmptyFrame()],
+  );
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(
+    storedState?.currentFrameIndex || 0,
+  );
   const [selectedTool, setSelectedTool] = useState<Tool>("draw");
-  const [selectedColor, setSelectedColor] = useState<RGB>({
-    r: 147,
-    g: 51,
-    b: 234,
-  }); // Purple! 💜
-  const [showGrid, setShowGrid] = useState(true);
+  const [selectedColor, setSelectedColor] = useState<RGB>(
+    storedState?.selectedColor || {
+      r: 147,
+      g: 51,
+      b: 234,
+    },
+  ); // Purple! 💜
+  const [showGrid, setShowGrid] = useState(storedState?.showGrid ?? true);
 
   const currentFrame = frames[currentFrameIndex];
+
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    try {
+      const stateToSave: StoredState = {
+        frames,
+        currentFrameIndex,
+        selectedColor,
+        showGrid,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    } catch (error) {
+      console.error("Failed to save to localStorage:", error);
+    }
+  }, [frames, currentFrameIndex, selectedColor, showGrid]);
 
   const handlePixelChange = (x: number, y: number, color: RGB) => {
     const newFrames = [...frames];
@@ -69,6 +114,20 @@ export function LightmojiStudio() {
     setFrames(newFrames);
   };
 
+  const handleNewProject = () => {
+    if (
+      confirm(
+        "Start a new project? This will clear all frames and your current work.",
+      )
+    ) {
+      localStorage.removeItem(STORAGE_KEY);
+      setFrames([createEmptyFrame()]);
+      setCurrentFrameIndex(0);
+      setSelectedColor({ r: 147, g: 51, b: 234 });
+      setShowGrid(true);
+    }
+  };
+
   return (
     <div className="lightmoji-studio">
       <header className="studio-header">
@@ -77,12 +136,26 @@ export function LightmojiStudio() {
             <span className="title-light">light</span>
             <span className="title-moji">moji</span>
           </h1>
-          <p className="studio-subtitle">by Claudia 💜</p>
+          <div className="header-subtitle">
+            <p className="studio-subtitle">by Claudia 💜</p>
+            <span className="auto-save-indicator">💾 Auto-saved</span>
+          </div>
         </div>
-        <button className="export-btn" type="button">
-          <span className="btn-icon">✨</span>
-          Export GIF
-        </button>
+        <div className="header-actions">
+          <button
+            className="new-project-btn"
+            type="button"
+            onClick={handleNewProject}
+            title="Start a new project"
+          >
+            <span className="btn-icon">🆕</span>
+            New Project
+          </button>
+          <button className="export-btn" type="button">
+            <span className="btn-icon">✨</span>
+            Export GIF
+          </button>
+        </div>
       </header>
 
       <div className="studio-workspace">
