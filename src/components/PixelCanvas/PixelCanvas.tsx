@@ -2,12 +2,13 @@
 import { type MouseEvent, useEffect, useRef } from "react";
 import type { Frame, RGB } from "../../types/lightmoji";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, PIXEL_SIZE } from "../../types/lightmoji";
-import { isPixelEmpty, rgbToHex } from "../../utils/lightmoji";
+import { compositeLayers, isPixelEmpty, rgbToHex } from "../../utils/lightmoji";
 import "./PixelCanvas.css";
 
 interface PixelCanvasProps {
   frame: Frame;
-  onPixelChange: (x: number, y: number, color: RGB) => void;
+  activeLayerId: string;
+  onPixelChange: (layerId: string, x: number, y: number, color: RGB) => void;
   selectedColor: RGB;
   selectedTool: "draw" | "erase" | "fill";
   showGrid: boolean;
@@ -15,6 +16,7 @@ interface PixelCanvasProps {
 
 export function PixelCanvas({
   frame,
+  activeLayerId,
   onPixelChange,
   selectedColor,
   selectedTool,
@@ -35,10 +37,13 @@ export function PixelCanvas({
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw pixels
+    // Composite all visible layers and render
+    const composited = compositeLayers(frame.layers);
+
+    // Draw composited pixels
     for (let y = 0; y < CANVAS_HEIGHT; y++) {
       for (let x = 0; x < CANVAS_WIDTH; x++) {
-        const pixel = frame.pixels[y][x];
+        const pixel = composited[y][x];
         if (!isPixelEmpty(pixel)) {
           ctx.fillStyle = rgbToHex(pixel);
           ctx.fillRect(x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
@@ -83,9 +88,9 @@ export function PixelCanvas({
 
     if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
       if (selectedTool === "draw") {
-        onPixelChange(x, y, selectedColor);
+        onPixelChange(activeLayerId, x, y, selectedColor);
       } else if (selectedTool === "erase") {
-        onPixelChange(x, y, { r: 0, g: 0, b: 0 });
+        onPixelChange(activeLayerId, x, y, { r: 0, g: 0, b: 0 });
       }
       // TODO: Implement fill tool
     }

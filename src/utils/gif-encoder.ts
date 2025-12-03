@@ -2,6 +2,7 @@
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import type { Frame } from "../types/lightmoji";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../types/lightmoji";
+import { compositeLayers } from "./lightmoji";
 
 export function framesToGIF(frames: Frame[], loop = true): Uint8Array {
   // Create encoder
@@ -10,13 +11,16 @@ export function framesToGIF(frames: Frame[], loop = true): Uint8Array {
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i];
 
+    // Composite all layers into a single pixel grid
+    const composited = compositeLayers(frame.layers);
+
     // Convert frame pixels to RGBA format (gifenc expects RGBA)
     const pixels = new Uint8Array(CANVAS_WIDTH * CANVAS_HEIGHT * 4);
 
     let offset = 0;
     for (let y = 0; y < CANVAS_HEIGHT; y++) {
       for (let x = 0; x < CANVAS_WIDTH; x++) {
-        const pixel = frame.pixels[y][x];
+        const pixel = composited[y][x];
         pixels[offset++] = pixel.r;
         pixels[offset++] = pixel.g;
         pixels[offset++] = pixel.b;

@@ -6,9 +6,19 @@ export interface RGB {
   b: number; // 0-255
 }
 
+export interface Layer {
+  id: string;
+  name: string;
+  visible: boolean;
+  pixels: RGB[][]; // 26 rows x 60 cols - never modified by shifting!
+  offsetX: number; // Horizontal offset for rendering (-infinity to +infinity)
+  offsetY: number; // Vertical offset for rendering (-infinity to +infinity)
+  opacity: number; // 0-1 for future blending
+}
+
 export interface Frame {
   id: string;
-  pixels: RGB[][]; // 26 rows x 60 cols
+  layers: Layer[]; // Multiple layers that composite together
   duration: number; // milliseconds
 }
 

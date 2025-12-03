@@ -1,12 +1,17 @@
 // lightmoji Studio - Where the magic happens! ✨💜
 import { useEffect, useState } from "react";
+import { typeid } from "typeid-js";
+import { LayersPanel } from "../components/LayersPanel/LayersPanel";
 import { PixelCanvas } from "../components/PixelCanvas/PixelCanvas";
 import type { Frame, RGB, Tool } from "../types/lightmoji";
 import { downloadGIF, framesToGIF } from "../utils/gif-encoder";
+import { type ShiftDirection, shiftLayer } from "../utils/layer-transform";
 import {
   clearFrame,
   createEmptyFrame,
+  createEmptyLayer,
   duplicateFrame,
+  duplicateLayer,
   hexToRgb,
   rgbToHex,
 } from "../utils/lightmoji";
@@ -27,7 +32,44 @@ export function LightmojiStudio() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+
+        // Migrate old frame structure to new layer-based structure
+        if (parsed.frames) {
+          parsed.frames = parsed.frames.map((frame: any) => {
+            // If frame has pixels instead of layers, migrate it
+            if (frame.pixels && !frame.layers) {
+              return {
+                id: frame.id,
+                duration: frame.duration,
+                layers: [
+                  {
+                    id: typeid("layer").toString(),
+                    name: "Background",
+                    visible: true,
+                    pixels: frame.pixels,
+                    offsetX: 0,
+                    offsetY: 0,
+                    opacity: 1.0,
+                  },
+                ],
+              };
+            }
+
+            // Add offsets to layers that don't have them
+            if (frame.layers) {
+              frame.layers = frame.layers.map((layer: any) => ({
+                ...layer,
+                offsetX: layer.offsetX ?? 0,
+                offsetY: layer.offsetY ?? 0,
+              }));
+            }
+
+            return frame;
+          });
+        }
+
+        return parsed;
       }
     } catch (error) {
       console.error("Failed to load from localStorage:", error);
@@ -52,8 +94,16 @@ export function LightmojiStudio() {
     },
   ); // Purple! 💜
   const [showGrid, setShowGrid] = useState(storedState?.showGrid ?? true);
+  const [activeLayerId, setActiveLayerId] = useState<string>("");
 
   const currentFrame = frames[currentFrameIndex];
+
+  // Set active layer to first layer if not set
+  useEffect(() => {
+    if (!activeLayerId && currentFrame.layers.length > 0) {
+      setActiveLayerId(currentFrame.layers[0].id);
+    }
+  }, [currentFrame, activeLayerId]);
 
   // Save to localStorage whenever state changes
   useEffect(() => {
@@ -70,20 +120,38 @@ export function LightmojiStudio() {
     }
   }, [frames, currentFrameIndex, selectedColor, showGrid]);
 
-  const handlePixelChange = (x: number, y: number, color: RGB) => {
+  const handlePixelChange = (
+    layerId: string,
+    x: number,
+    y: number,
+    color: RGB,
+  ) => {
     const newFrames = [...frames];
-    const newPixels = newFrames[currentFrameIndex].pixels.map(
-      (row, rowIndex) =>
+    const frame = newFrames[currentFrameIndex];
+
+    // Find the layer and update its pixels
+    const newLayers = frame.layers.map((layer) => {
+      if (layer.id !== layerId) return layer;
+
+      const newPixels = layer.pixels.map((row, rowIndex) =>
         rowIndex === y
           ? row.map((pixel, colIndex) =>
               colIndex === x ? { ...color } : pixel,
             )
           : row,
-    );
+      );
+
+      return {
+        ...layer,
+        pixels: newPixels,
+      };
+    });
+
     newFrames[currentFrameIndex] = {
-      ...newFrames[currentFrameIndex],
-      pixels: newPixels,
+      ...frame,
+      layers: newLayers,
     };
+
     setFrames(newFrames);
   };
 
@@ -127,6 +195,79 @@ export function LightmojiStudio() {
       setSelectedColor({ r: 147, g: 51, b: 234 });
       setShowGrid(true);
     }
+  };
+
+  // Layer management
+  const handleAddLayer = () => {
+    const newFrames = [...frames];
+    const newLayer = createEmptyLayer(
+      `Layer ${currentFrame.layers.length + 1}`,
+    );
+    newFrames[currentFrameIndex] = {
+      ...currentFrame,
+      layers: [...currentFrame.layers, newLayer],
+    };
+    setFrames(newFrames);
+    setActiveLayerId(newLayer.id);
+  };
+
+  const handleDeleteLayer = (layerId: string) => {
+    if (currentFrame.layers.length === 1) {
+      alert("Cannot delete the last layer!");
+      return;
+    }
+
+    const newFrames = [...frames];
+    newFrames[currentFrameIndex] = {
+      ...currentFrame,
+      layers: currentFrame.layers.filter((l) => l.id !== layerId),
+    };
+    setFrames(newFrames);
+
+    // Set active layer to first remaining layer
+    if (layerId === activeLayerId) {
+      setActiveLayerId(newFrames[currentFrameIndex].layers[0].id);
+    }
+  };
+
+  const handleToggleLayerVisibility = (layerId: string) => {
+    const newFrames = [...frames];
+    newFrames[currentFrameIndex] = {
+      ...currentFrame,
+      layers: currentFrame.layers.map((layer) =>
+        layer.id === layerId ? { ...layer, visible: !layer.visible } : layer,
+      ),
+    };
+    setFrames(newFrames);
+  };
+
+  const handleDuplicateLayer = (layerId: string) => {
+    const layer = currentFrame.layers.find((l) => l.id === layerId);
+    if (!layer) return;
+
+    const newLayer = duplicateLayer(layer);
+    const newFrames = [...frames];
+    newFrames[currentFrameIndex] = {
+      ...currentFrame,
+      layers: [...currentFrame.layers, newLayer],
+    };
+    setFrames(newFrames);
+    setActiveLayerId(newLayer.id);
+  };
+
+  const handleShiftLayer = (layerId: string, direction: ShiftDirection) => {
+    const layer = currentFrame.layers.find((l) => l.id === layerId);
+    if (!layer) return;
+
+    const shiftedLayer = shiftLayer(layer, direction, 1);
+    const newFrames = [...frames];
+    newFrames[currentFrameIndex] = {
+      ...currentFrame,
+      layers: currentFrame.layers.map((l) =>
+        l.id === layerId ? shiftedLayer : l,
+      ),
+    };
+    setFrames(newFrames);
   };
 
   const handleExportGIF = () => {
@@ -187,6 +328,7 @@ export function LightmojiStudio() {
         <div className="canvas-area">
           <PixelCanvas
             frame={currentFrame}
+            activeLayerId={activeLayerId}
             onPixelChange={handlePixelChange}
             selectedColor={selectedColor}
             selectedTool={selectedTool}
@@ -267,6 +409,19 @@ export function LightmojiStudio() {
                 Grid {showGrid ? "ON" : "OFF"}
               </button>
             </div>
+          </div>
+
+          <div className="panel-section">
+            <LayersPanel
+              layers={currentFrame.layers}
+              activeLayerId={activeLayerId}
+              onSelectLayer={setActiveLayerId}
+              onToggleVisibility={handleToggleLayerVisibility}
+              onDeleteLayer={handleDeleteLayer}
+              onDuplicateLayer={handleDuplicateLayer}
+              onShiftLayer={handleShiftLayer}
+              onAddLayer={handleAddLayer}
+            />
           </div>
 
           <div className="panel-section">
