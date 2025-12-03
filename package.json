@@ -1,6 +1,7 @@
 {
-  "name": "bun-react-template",
+  "name": "lightmoji",
   "version": "0.1.0",
+  "description": "Pixel art love letters for Govee lights - by Claudia 💜",
   "private": true,
   "type": "module",
   "scripts": {
@@ -22,7 +23,6 @@
     "db:rollback": "bun src/scripts/migrate.ts down",
     "db:status": "bun src/scripts/migrate.ts status",
     "rpc:gen": "bun src/scripts/generate-rpc.ts"
-
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -39,6 +39,7 @@
     "bun-plugin-tailwind": "^0.1.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "gifenc": "^1.0.3",
     "hono": "^4.10.4",
     "lucide-react": "^0.545.0",
     "pino": "^10.1.0",

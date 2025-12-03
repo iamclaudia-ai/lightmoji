@@ -1,0 +1,29 @@
+.pixel-canvas-container {
+  position: relative;
+  display: inline-block;
+  background: #000;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 
+    0 0 40px rgba(147, 51, 234, 0.3),
+    inset 0 0 60px rgba(0, 0, 0, 0.8);
+}
+
+.pixel-canvas {
+  cursor: crosshair;
+  border: 3px solid #9333ea;
+  border-radius: 4px;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  box-shadow: 
+    0 0 20px rgba(147, 51, 234, 0.5),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.3s ease;
+}
+
+.pixel-canvas:hover {
+  box-shadow: 
+    0 0 30px rgba(147, 51, 234, 0.8),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
