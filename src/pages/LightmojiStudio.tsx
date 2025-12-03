@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { PixelCanvas } from "../components/PixelCanvas/PixelCanvas";
 import type { Frame, RGB, Tool } from "../types/lightmoji";
+import { downloadGIF, framesToGIF } from "../utils/gif-encoder";
 import {
   clearFrame,
   createEmptyFrame,
@@ -128,6 +129,26 @@ export function LightmojiStudio() {
     }
   };
 
+  const handleExportGIF = () => {
+    try {
+      // Generate GIF from frames
+      const gifData = framesToGIF(frames, true);
+
+      // Generate filename with timestamp
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/:/g, "-");
+      const filename = `lightmoji-${timestamp}.gif`;
+
+      // Download the GIF
+      downloadGIF(gifData, filename);
+    } catch (error) {
+      console.error("Failed to export GIF:", error);
+      alert("Failed to export GIF. Check console for details.");
+    }
+  };
+
   return (
     <div className="lightmoji-studio">
       <header className="studio-header">
@@ -151,7 +172,11 @@ export function LightmojiStudio() {
             <span className="btn-icon">🆕</span>
             New Project
           </button>
-          <button className="export-btn" type="button">
+          <button
+            className="export-btn"
+            type="button"
+            onClick={handleExportGIF}
+          >
             <span className="btn-icon">✨</span>
             Export GIF
           </button>
